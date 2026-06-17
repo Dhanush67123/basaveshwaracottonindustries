@@ -393,7 +393,7 @@ const MainDashboard: React.FC = () => {
             <h5 className="font-bold text-white mb-3 uppercase tracking-wider text-[10px]">Headquarters</h5>
             <p className="text-muted-foreground leading-relaxed flex items-start gap-1.5 text-[11px]">
               <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-              102, Cotton Plaza, GIDC Sector 5, Adilabad, Telangana - 504001, India
+              49/1 , S H -16,MAGANAGERA CROSS,YADRAMI TQ,BIRYALHISSA,GULBARGA
             </p>
           </div>
 
