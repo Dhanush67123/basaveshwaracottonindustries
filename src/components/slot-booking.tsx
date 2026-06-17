@@ -10,6 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { db } from "@/lib/firebase";
+import { collection, addDoc } from "firebase/firestore";
 
 interface GatePassDetails {
   passId: string;
@@ -38,6 +40,7 @@ export const SlotBooking: React.FC = () => {
   // Gate Pass State
   const [showGatePass, setShowGatePass] = useState(false);
   const [gatePassDetails, setGatePassDetails] = useState<GatePassDetails | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Simulated slot remaining capacity
   const [slotCapacities, setSlotCapacities] = useState({
@@ -59,7 +62,7 @@ export const SlotBooking: React.FC = () => {
   };
 
 
-  const handleBooking = (e: React.FormEvent) => {
+  const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!date) {
@@ -75,38 +78,60 @@ export const SlotBooking: React.FC = () => {
       return;
     }
 
-    // Generate dynamic gate pass
-    const passId = `WG-${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, "0")}${date.getDate().toString().padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const estimatedValue = Math.round(Number(quantity) * rawCottonBuyRate);
-    const formattedDate = date ? date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "";
+    setIsSubmitting(true);
+    const toastId = toast.loading("Booking slot and generating Gate Pass...");
 
-    const timeSlotLabel = {
-      morning: "Morning Shift (08:00 AM - 12:00 PM)",
-      afternoon: "Afternoon Shift (12:00 PM - 04:00 PM)",
-      evening: "Evening Shift (04:00 PM - 08:00 PM)",
-    }[timeSlot];
+    try {
+      // Generate dynamic gate pass
+      const passId = `WG-${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, "0")}${date.getDate().toString().padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const estimatedValue = Math.round(Number(quantity) * rawCottonBuyRate);
+      const formattedDate = date ? date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "";
 
-    const details = {
-      passId,
-      name,
-      phone,
-      village,
-      quantity,
-      vehicle: vehicle.toUpperCase(),
-      dateStr: formattedDate,
-      timeSlotLabel,
-      estimatedValue,
-    };
+      const timeSlotLabel = {
+        morning: "Morning Shift (08:00 AM - 12:00 PM)",
+        afternoon: "Afternoon Shift (12:00 PM - 04:00 PM)",
+        evening: "Evening Shift (04:00 PM - 08:00 PM)",
+      }[timeSlot];
 
-    setGatePassDetails(details);
-    setShowGatePass(true);
-    toast.success("Delivery Slot booked successfully! Gate Pass generated.");
+      const details = {
+        passId,
+        name,
+        phone,
+        village,
+        quantity,
+        vehicle: vehicle.toUpperCase(),
+        dateStr: formattedDate,
+        timeSlotLabel,
+        estimatedValue,
+        createdAt: new Date().toISOString(),
+      };
 
-    // Subtract from capacity
-    setSlotCapacities(prev => ({
-      ...prev,
-      [timeSlot]: Math.max(0, prev[timeSlot as keyof typeof prev] - 1)
-    }));
+      // Save to Firebase Firestore if configured
+      if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+        await addDoc(collection(db, "bookings"), details);
+      } else {
+        console.warn("Firebase config missing. Gate Pass created locally.");
+      }
+
+      setGatePassDetails(details);
+      setShowGatePass(true);
+      toast.success("Delivery Slot booked successfully! Gate Pass generated.", {
+        id: toastId,
+      });
+
+      // Subtract from capacity
+      setSlotCapacities(prev => ({
+        ...prev,
+        [timeSlot]: Math.max(0, prev[timeSlot as keyof typeof prev] - 1)
+      }));
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to book slot. Please try again.", {
+        id: toastId,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handlePrint = () => {
@@ -316,9 +341,10 @@ export const SlotBooking: React.FC = () => {
 
         <Button
           type="submit"
-          className="w-full mt-4 py-6 font-bold text-xs bg-primary text-primary-foreground rounded-xl flex items-center justify-center gap-2 hover:bg-primary/95 transition-all duration-200 border-0 active:scale-98 cursor-pointer shadow-lg"
+          disabled={isSubmitting}
+          className="w-full mt-4 py-6 font-bold text-xs bg-primary text-primary-foreground rounded-xl flex items-center justify-center gap-2 hover:bg-primary/95 transition-all duration-200 border-0 active:scale-98 cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Confirm & Issue Gate Pass
+          {isSubmitting ? "Booking Slot..." : "Confirm & Issue Gate Pass"}
           <ArrowRight className="h-4 w-4" />
         </Button>
       </form>
