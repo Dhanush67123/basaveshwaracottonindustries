@@ -148,17 +148,49 @@ const MainDashboard: React.FC = () => {
   const [inquiryName, setInquiryName] = useState("");
   const [inquiryEmail, setInquiryEmail] = useState("");
   const [inquiryMsg, setInquiryMsg] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInquiry = (e: React.FormEvent) => {
+  const handleInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inquiryName || !inquiryEmail || !inquiryMsg) {
       toast.error("Please fill in all inquiry fields.");
       return;
     }
-    toast.success(`Thank you ${inquiryName}! Your wholesale inquiry has been submitted. Our team will contact you shortly.`);
-    setInquiryName("");
-    setInquiryEmail("");
-    setInquiryMsg("");
+    
+    setIsSubmitting(true);
+    const toastId = toast.loading("Submitting your inquiry...");
+
+    try {
+      const res = await fetch("/api/inquiry", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: inquiryName,
+          email: inquiryEmail,
+          message: inquiryMsg,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to submit inquiry");
+      }
+
+      toast.success(`Thank you ${inquiryName}! Your wholesale inquiry has been submitted.`, {
+        id: toastId,
+      });
+      setInquiryName("");
+      setInquiryEmail("");
+      setInquiryMsg("");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to send inquiry. Please try again later.", {
+        id: toastId,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -365,9 +397,10 @@ const MainDashboard: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-4 bg-primary text-primary-foreground font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-primary/95 transition-all duration-200 border-0 active:scale-98 cursor-pointer shadow-lg mt-4"
+              disabled={isSubmitting}
+              className="w-full py-4 bg-primary text-primary-foreground font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:bg-primary/95 transition-all duration-200 border-0 active:scale-98 cursor-pointer shadow-lg mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Submit Trade Inquiry
+              {isSubmitting ? "Submitting Inquiry..." : "Submit Trade Inquiry"}
               <Send className="h-3.5 w-3.5" />
             </button>
           </form>
