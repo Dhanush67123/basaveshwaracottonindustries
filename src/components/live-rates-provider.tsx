@@ -63,7 +63,7 @@ export const LiveRatesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const fetchLiveRates = async () => {
     try {
-      const res = await fetch("/api/cotton-rates");
+      const res = await fetch(`/api/cotton-rates?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to fetch rates");
       const data = await res.json();
       

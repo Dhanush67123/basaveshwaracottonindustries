@@ -217,6 +217,7 @@ export async function GET() {
       manualBalePrice,
       manualSeedPrice,
       useManualRates,
+      firebaseConfigured: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
       source: usingCAI ? `Cotton Association of India (CAI - ${caiDate})` : "Estimated (Yahoo Finance)",
     });
   } catch (error: any) {
