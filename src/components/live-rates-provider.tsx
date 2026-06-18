@@ -34,24 +34,32 @@ export const LiveRatesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [cottonSeedChange, setCottonSeedChange] = useState(-0.42);
   const [isSimulating, setIsSimulating] = useState(true);
 
+  // Industry manual rate overrides
+  const [manualBalePrice, setManualBalePrice] = useState<number | null>(null);
+  const [manualSeedPrice, setManualSeedPrice] = useState<number | null>(null);
+  const [useManualRates, setUseManualRates] = useState(false);
+
   // Maintain historical data for charts (last 7 data points)
   const [usHistory, setUsHistory] = useState<number[]>([82.1, 83.0, 82.5, 83.8, 84.1, 83.9, 84.45]);
   const [inHistory, setInHistory] = useState<number[]>([16039, 16123, 16067, 16235, 16292, 16264, 16348]);
 
-  // Derived calculations:
-  // 1 Quintal = 100 kg of pure lint.
-  // Standard Bale = 170 kg of pure lint.
-  // Bale Price = (inCotton / 100) * 170 * 1.02
-  const balePrice = Math.round((inCotton / 100) * 170 * 1.02);
+  // Decoupled industry rates calculations:
+  // Cotton Bales rate: uses manual rate if active, otherwise derived from Indian spot rate.
+  const activeBalePrice = useManualRates && manualBalePrice !== null
+    ? manualBalePrice
+    : Math.round((inCotton / 100) * 170 * 1.02);
 
-  // 1 Quintal (100 kg) of Kapas (Raw Cotton) yields:
-  // - ~34 kg Pure Cotton Lint (derived from inCotton per kg)
-  // - ~64 kg Cotton Seeds (derived from cottonSeed per kg)
-  // - ~2 kg waste
-  // Farmer Buy Rate = (34 * lintPricePerKg) + (64 * seedPricePerKg) - Ginning/Processing Fee (approx INR 600)
-  const lintPricePerKg = inCotton / 100;
-  const seedPricePerKg = cottonSeed / 100;
-  const rawCottonBuyRate = Math.round((34 * lintPricePerKg) + (64 * seedPricePerKg) - 600);
+  // Cotton Seeds rate: uses manual rate if active, otherwise standard market rate.
+  const activeCottonSeed = useManualRates && manualSeedPrice !== null
+    ? manualSeedPrice
+    : cottonSeed;
+
+  // Farmer buying rate (Kapas): calculated using industry bale & seed rates (static if manual, live if market).
+  const lintPricePerKg = useManualRates && manualBalePrice !== null
+    ? (manualBalePrice / 1.734)
+    : inCotton / 100;
+  const seedPricePerKg = activeCottonSeed / 100;
+  const activeRawCottonBuyRate = Math.round((34 * lintPricePerKg) + (64 * seedPricePerKg) - 600);
 
   const fetchLiveRates = async () => {
     try {
@@ -65,6 +73,9 @@ export const LiveRatesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setInCottonChange(data.inCottonChange);
       setCottonSeed(data.cottonSeed);
       setCottonSeedChange(data.cottonSeedChange);
+      setManualBalePrice(data.manualBalePrice);
+      setManualSeedPrice(data.manualSeedPrice);
+      setUseManualRates(data.useManualRates);
 
       setUsHistory((h) => [...h.slice(1), data.usCotton]);
       setInHistory((h) => [...h.slice(1), data.inCotton]);
@@ -133,10 +144,10 @@ export const LiveRatesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         usCottonChange,
         inCotton,
         inCottonChange,
-        cottonSeed,
-        cottonSeedChange,
-        balePrice,
-        rawCottonBuyRate,
+        cottonSeed: activeCottonSeed,
+        cottonSeedChange: useManualRates ? 0 : cottonSeedChange,
+        balePrice: activeBalePrice,
+        rawCottonBuyRate: activeRawCottonBuyRate,
         isSimulating,
         history: {
           usCotton: usHistory,

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, doc, deleteDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, deleteDoc, setDoc } from "firebase/firestore";
 import {
   Sprout,
   Ticket,
@@ -57,11 +57,17 @@ export default function AdminDashboard() {
   const [passcode, setPasscode] = useState("");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [activeTab, setActiveTab] = useState<"bookings" | "inquiries">("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "inquiries" | "rates">("bookings");
   
   // Search states
   const [searchQuery, setSearchQuery] = useState("");
   
+  // Rates manager states
+  const [ratesBalePrice, setRatesBalePrice] = useState("");
+  const [ratesSeedPrice, setRatesSeedPrice] = useState("");
+  const [useManualRates, setUseManualRates] = useState(false);
+  const [isUpdatingRates, setIsUpdatingRates] = useState(false);
+
   // Dialog actions
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: "booking" | "inquiry" } | null>(null);
   const [selectedBookingForPass, setSelectedBookingForPass] = useState<Booking | null>(null);
@@ -112,9 +118,26 @@ export default function AdminDashboard() {
       }
     );
 
+    // Listen to rates settings
+    const unsubscribeRates = onSnapshot(
+      doc(db, "settings", "rates"),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          setRatesBalePrice(data.manualBalePrice?.toString() || "");
+          setRatesSeedPrice(data.manualSeedPrice?.toString() || "");
+          setUseManualRates(!!data.useManualRates);
+        }
+      },
+      (error) => {
+        console.error("Firestore rates read error:", error);
+      }
+    );
+
     return () => {
       unsubscribeBookings();
       unsubscribeInquiries();
+      unsubscribeRates();
     };
   }, [isAuthorized]);
 
@@ -154,6 +177,40 @@ export default function AdminDashboard() {
       toast.error("Failed to delete the entry.");
     } finally {
       setDeleteTarget(null);
+    }
+  };
+
+  const handleSaveRates = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdatingRates(true);
+
+    const balePriceNum = parseInt(ratesBalePrice);
+    const seedPriceNum = parseInt(ratesSeedPrice);
+
+    if (isNaN(balePriceNum) || balePriceNum <= 0) {
+      toast.error("Please enter a valid Cotton Bale price.");
+      setIsUpdatingRates(false);
+      return;
+    }
+    if (isNaN(seedPriceNum) || seedPriceNum <= 0) {
+      toast.error("Please enter a valid Cotton Seed price.");
+      setIsUpdatingRates(false);
+      return;
+    }
+
+    try {
+      await setDoc(doc(db, "settings", "rates"), {
+        manualBalePrice: balePriceNum,
+        manualSeedPrice: seedPriceNum,
+        useManualRates,
+        updatedAt: new Date().toISOString(),
+      });
+      toast.success("Industry rates updated successfully!");
+    } catch (err) {
+      console.error("Rates save error:", err);
+      toast.error("Failed to update industry rates.");
+    } finally {
+      setIsUpdatingRates(false);
     }
   };
 
@@ -314,10 +371,10 @@ export default function AdminDashboard() {
           {/* CONTROL BAR */}
           <div className="p-6 border-b border-border/20 flex flex-col md:flex-row justify-between items-center gap-4 bg-secondary/10">
             {/* Navigation Tabs */}
-            <div className="flex bg-secondary/50 p-1.5 rounded-2xl border border-border/20 w-full md:w-auto">
+            <div className="flex bg-secondary/50 p-1.5 rounded-2xl border border-border/20 w-full md:w-auto overflow-x-auto">
               <button
                 onClick={() => { setActiveTab("bookings"); setSearchQuery(""); }}
-                className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-extrabold text-xs tracking-wider uppercase flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 ${
+                className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-extrabold text-xs tracking-wider uppercase flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 whitespace-nowrap ${
                   activeTab === "bookings"
                     ? "bg-primary text-primary-foreground shadow-lg"
                     : "text-muted-foreground hover:text-white"
@@ -327,7 +384,7 @@ export default function AdminDashboard() {
               </button>
               <button
                 onClick={() => { setActiveTab("inquiries"); setSearchQuery(""); }}
-                className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-extrabold text-xs tracking-wider uppercase flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 ${
+                className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-extrabold text-xs tracking-wider uppercase flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 whitespace-nowrap ${
                   activeTab === "inquiries"
                     ? "bg-primary text-primary-foreground shadow-lg"
                     : "text-muted-foreground hover:text-white"
@@ -335,18 +392,30 @@ export default function AdminDashboard() {
               >
                 <MessageSquare className="h-4 w-4" /> B2B Inquiries
               </button>
+              <button
+                onClick={() => { setActiveTab("rates"); setSearchQuery(""); }}
+                className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-extrabold text-xs tracking-wider uppercase flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 whitespace-nowrap ${
+                  activeTab === "rates"
+                    ? "bg-primary text-primary-foreground shadow-lg"
+                    : "text-muted-foreground hover:text-white"
+                }`}
+              >
+                <TrendingUp className="h-4 w-4" /> Rates Manager
+              </button>
             </div>
 
             {/* Search Input */}
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={activeTab === "bookings" ? "Search farmer name, village..." : "Search sender name, email..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-5 bg-card/50 border-border/50 text-xs rounded-xl focus-visible:ring-primary"
-              />
-            </div>
+            {activeTab !== "rates" && (
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={activeTab === "bookings" ? "Search farmer name, village..." : "Search sender name, email..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4 py-5 bg-card/50 border-border/50 text-xs rounded-xl focus-visible:ring-primary"
+                />
+              </div>
+            )}
           </div>
 
           {/* TABLE CONTAINER */}
@@ -427,7 +496,7 @@ export default function AdminDashboard() {
                   <span className="text-xs font-semibold">No scale bookings found matching your search.</span>
                 </div>
               )
-            ) : (
+            ) : activeTab === "inquiries" ? (
               filteredInquiries.length > 0 ? (
                 <Table>
                   <TableHeader>
@@ -481,6 +550,121 @@ export default function AdminDashboard() {
                   <span className="text-xs font-semibold">No trade inquiries found matching your search.</span>
                 </div>
               )
+            ) : (
+              /* Rates Manager UI Form */
+              <div className="p-8 max-w-4xl mx-auto space-y-8 select-none">
+                <div className="border-b border-border/20 pb-4">
+                  <h4 className="text-lg font-bold text-white">Industry Pricing Control</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Directly control the buying and selling rates displayed across the Basaveshwara portals.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSaveRates} className="space-y-6">
+                  {/* Toggle Mode */}
+                  <div className="bg-secondary/20 border border-border/30 rounded-2xl p-5 flex items-center justify-between">
+                    <div className="space-y-1 pr-4">
+                      <label htmlFor="useManualRatesToggle" className="text-sm font-bold text-white block cursor-pointer">Manual Rates Override</label>
+                      <span className="text-[11px] text-muted-foreground block leading-normal">
+                        Enable this to freeze rates on the homepage to your manual entry below. If disabled, the site displays real-time fluctuating market rates.
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="useManualRatesToggle"
+                        checked={useManualRates}
+                        onChange={(e) => setUseManualRates(e.target.checked)}
+                        className="h-5 w-5 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer accent-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pricing Inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[10px] uppercase font-extrabold text-muted-foreground tracking-widest">
+                        Cotton Bale Price (INR / 170kg Bale)
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 62000"
+                        value={ratesBalePrice}
+                        onChange={(e) => setRatesBalePrice(e.target.value)}
+                        className="py-6 rounded-xl border-border/60 bg-secondary/15 focus-visible:ring-primary font-bold text-white"
+                        required
+                        disabled={isUpdatingRates}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[10px] uppercase font-extrabold text-muted-foreground tracking-widest">
+                        Premium Seed Price (INR / 100kg Quintal)
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 3200"
+                        value={ratesSeedPrice}
+                        onChange={(e) => setRatesSeedPrice(e.target.value)}
+                        className="py-6 rounded-xl border-border/60 bg-secondary/15 focus-visible:ring-primary font-bold text-white"
+                        required
+                        disabled={isUpdatingRates}
+                      />
+                    </div>
+                  </div>
+
+                  {/* PREVIEW CONTAINER */}
+                  <div className="border border-border/30 rounded-2xl p-6 bg-card/10 space-y-4">
+                    <h5 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <TrendingUp className="h-4 w-4 text-primary" /> Live Website Preview
+                    </h5>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-secondary/10 border border-border/20 rounded-xl p-4">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Cotton Bales (Selling)</span>
+                        <span className="text-lg font-black text-white mt-1 block">
+                          ₹{ratesBalePrice ? Number(ratesBalePrice).toLocaleString() : "0"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block">per 170kg Bale</span>
+                      </div>
+
+                      <div className="bg-secondary/10 border border-border/20 rounded-xl p-4">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Cotton Seeds (Selling)</span>
+                        <span className="text-lg font-black text-white mt-1 block">
+                          ₹{ratesSeedPrice ? Number(ratesSeedPrice).toLocaleString() : "0"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block">per 100kg Quintal</span>
+                      </div>
+
+                      <div className="bg-secondary/10 border border-emerald-500/20 rounded-xl p-4 bg-emerald-500/5">
+                        <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block">Kapas Buying Rate (Farmer)</span>
+                        <span className="text-lg font-black text-emerald-400 mt-1 block">
+                          ₹{
+                            (() => {
+                              const bp = parseFloat(ratesBalePrice);
+                              const sp = parseFloat(ratesSeedPrice);
+                              if (isNaN(bp) || isNaN(sp)) return "0";
+                              const lintPerKg = bp / 1.734;
+                              const seedPerKg = sp / 100;
+                              return Math.round((34 * lintPerKg) + (64 * seedPerKg) - 600).toLocaleString();
+                            })()
+                          }
+                        </span>
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block">per 100kg Quintal (Derived)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    disabled={isUpdatingRates}
+                    className="py-6 font-bold text-xs bg-primary text-primary-foreground rounded-xl flex items-center justify-center gap-2 hover:bg-primary/95 transition-all duration-200 border-0 shadow-lg cursor-pointer w-full"
+                  >
+                    {isUpdatingRates ? "Updating Rates Database..." : "Save & Update Website Rates"}
+                  </Button>
+                </form>
+              </div>
             )}
           </div>
         </Card>

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 3600; // cache for 1 hour to prevent overloading CAI website
+export const revalidate = 10; // 10 seconds cache to propagate manual rate changes instantly
 
 // Helper to format date in DD-MM-YYYY format
 function formatDate(date: Date): string {
@@ -127,6 +129,25 @@ async function fetchYahooPrice(symbol: string) {
 
 export async function GET() {
   try {
+    let manualBalePrice = null;
+    let manualSeedPrice = null;
+    let useManualRates = false;
+
+    try {
+      if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+        const docRef = doc(db, "settings", "rates");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          manualBalePrice = data.manualBalePrice || null;
+          manualSeedPrice = data.manualSeedPrice || null;
+          useManualRates = !!data.useManualRates;
+        }
+      }
+    } catch (dbErr) {
+      console.error("Failed to fetch manual rates from Firestore:", dbErr);
+    }
+
     // Fetch Yahoo Finance in parallel
     const [cotton, usdInr] = await Promise.all([
       fetchYahooPrice("CT=F").catch(() => null),
@@ -193,6 +214,9 @@ export async function GET() {
       inCottonChange,
       cottonSeed,
       cottonSeedChange,
+      manualBalePrice,
+      manualSeedPrice,
+      useManualRates,
       source: usingCAI ? `Cotton Association of India (CAI - ${caiDate})` : "Estimated (Yahoo Finance)",
     });
   } catch (error: any) {
