@@ -94,8 +94,8 @@ const HeaderNavbar: React.FC = () => {
             <Sprout className="h-5.5 w-5.5 text-white" />
           </div>
           <div>
-            <span className="text-base font-extrabold tracking-tight text-white block leading-none">WHITE GOLD</span>
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 block">Industries</span>
+            <span className="text-base font-extrabold tracking-tight text-white block leading-none">BASAVESHWARA</span>
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 block">Cotton Industries</span>
           </div>
         </div>
 
@@ -415,7 +415,7 @@ const MainDashboard: React.FC = () => {
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
                 <Sprout className="h-4 w-4" />
               </div>
-              <span className="text-sm font-extrabold text-white">WHITE GOLD</span>
+              <span className="text-sm font-extrabold text-white">BASAVESHWARA COTTON INDUSTRIES</span>
             </div>
             <p className="text-muted-foreground leading-relaxed text-[11px]">
               Empowering farmers and sourcing industries with state-of-the-art cotton processing, transparent commodity rates, and instant settlements.
@@ -458,7 +458,7 @@ const MainDashboard: React.FC = () => {
         </div>
 
         <div className="max-w-7xl mx-auto border-t border-border/10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] text-muted-foreground font-semibold">
-          <span>&copy; 2026 White Gold Cotton Industries. All Rights Reserved.</span>
+          <span>&copy; 2026 Basaveshwara Cotton Industries. All Rights Reserved.</span>
           <div className="flex gap-4">
             <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-white transition-colors">Terms of Ginning</a>

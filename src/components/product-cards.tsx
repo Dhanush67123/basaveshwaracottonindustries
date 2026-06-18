@@ -98,7 +98,7 @@ export const ProductCards: React.FC = () => {
           Core Operations
         </Badge>
         <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-4">
-          Three Pillars of White Gold
+          Three Pillars of Basaveshwara Cotton Industries
         </h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
           From the fertile soils of the farms to global manufacturing units, we process raw Kapas, separating it into industry-standard pure lint bales and premium organic seeds.

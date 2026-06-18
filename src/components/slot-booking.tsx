@@ -355,7 +355,7 @@ export const SlotBooking: React.FC = () => {
           <DialogContent className="max-w-[450px] bg-card border border-border/60 rounded-3xl p-6 shadow-2xl text-foreground font-sans overflow-hidden">
             <DialogHeader className="text-center pb-4 border-b border-border/20">
               <DialogTitle className="text-xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
-                <Ticket className="h-5 w-5 text-primary" /> White Gold Gate Pass
+                <Ticket className="h-5 w-5 text-primary" /> Basaveshwara Gate Pass
               </DialogTitle>
               <DialogDescription className="text-xs font-medium text-muted-foreground">
                 Ginning Factory Intake Gate Pass

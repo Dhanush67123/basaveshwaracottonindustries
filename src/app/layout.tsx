@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "White Gold Cotton | Premium Ginning, Seeds & Live Market Trade",
+  title: "Basaveshwara Cotton Industries | Premium Ginning, Seeds & Live Market Trade",
   description: "State-of-the-art agricultural commodities platform. Track live US & Indian cotton rates, calculate raw cotton processing values, and book delivery slots.",
 };
 
